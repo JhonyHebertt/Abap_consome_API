@@ -1,0 +1,139 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZPR_API_JHC_TOP
+*&---------------------------------------------------------------------*
+"User: jhony
+"Password: abcd1234
+TYPES: BEGIN OF ty_token,
+         nome  TYPE string,
+         token TYPE string,
+       END OF ty_token,
+
+       BEGIN OF ty_usuarios,
+         id       TYPE i,
+         username TYPE string,
+         password TYPE string,
+         status   TYPE i,
+       END OF ty_usuarios,
+
+       BEGIN OF ty_categorias,
+         id        TYPE i,
+         descricao TYPE string,
+       END OF ty_categorias,
+
+       BEGIN OF ty_produtos,
+         id        TYPE i,
+         descricao TYPE string,
+         categoria TYPE i,
+         preco     TYPE decfloat16,
+       END OF ty_produtos.
+
+DATA: token        TYPE ty_token,
+      usuario      TYPE ty_usuarios,
+      tb_usuario   TYPE TABLE OF ty_usuarios,
+      categoria    TYPE ty_categorias,
+      tb_categoria TYPE TABLE OF ty_categorias,
+      produto      TYPE ty_produtos,
+      tb_produto   TYPE TABLE OF ty_produtos.
+
+DATA: lo_http_client TYPE REF TO if_http_client,
+      lv_url         TYPE string VALUE 'http://10.31.0.24:9000/',
+*      lv_url         TYPE string VALUE 'http://172.18.3.109:9000/',
+*      lv_url         TYPE string VALUE 'http://192.168.100.83:9000/',
+      lv_return_code TYPE i,
+      lv_method      TYPE string,
+      lv_rota        TYPE string,
+      lv_json        TYPE string,
+      l_query_string TYPE string,
+      l_query_length TYPE i.
+
+"para criação do avl
+DATA: alv_usuario TYPE REF TO cl_gui_alv_grid,
+      st_layout   TYPE lvc_s_layo,
+      ls_variant  TYPE disvariant,
+      it_fieldcat TYPE lvc_t_fcat,
+      co_usuario  TYPE REF TO cl_gui_custom_container.
+
+DATA: go_alv        TYPE REF TO cl_salv_table,
+      lr_columns    TYPE REF TO cl_salv_columns_table,
+      lr_column     TYPE REF TO cl_salv_column_table,
+      lr_functions  TYPE REF TO cl_salv_functions_list,
+      gr_display    TYPE REF TO cl_salv_display_settings,
+      gr_selections TYPE REF TO cl_salv_selections.
+
+
+CONSTANTS: c_r1(2) TYPE c VALUE 'R1',
+           c_pu(2) TYPE c VALUE 'PU', "post_usu
+           c_pc(2) TYPE c VALUE 'PC', "post_categ
+           c_pp(2) TYPE c VALUE 'PP', "post_prod
+           c_de(2) TYPE c VALUE 'DE'. "delete
+
+SELECTION-SCREEN: BEGIN OF BLOCK b1 WITH FRAME TITLE text-s01.
+PARAMETERS: p_nome  TYPE string, " OBLIGATORY,
+            p_senha TYPE string. " OBLIGATORY.
+
+SELECTION-SCREEN: END OF BLOCK b1.
+
+*Criação da Aba1 -Subtela Usuários
+SELECTION-SCREEN BEGIN OF SCREEN 1010 AS SUBSCREEN.
+
+*  Criação do Bloco da tela
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-s02.
+PARAMETERS: p_getu  TYPE c RADIOBUTTON GROUP rb1 DEFAULT 'X' USER-COMMAND radio,
+            p_postu TYPE c RADIOBUTTON GROUP rb1,
+*               p_putU  TYPE c RADIOBUTTON GROUP rb1,
+            p_delu  TYPE c RADIOBUTTON GROUP rb1.
+SELECTION-SCREEN END OF BLOCK b2.
+
+SELECTION-SCREEN BEGIN OF BLOCK b_usu WITH FRAME TITLE text-s05.
+PARAMETERS: p_nome_u(50) TYPE c MODIF ID pu,
+            p_senh_u(50) TYPE c MODIF ID pu.
+SELECTION-SCREEN END OF BLOCK b_usu.
+
+"criar ALV aqui
+SELECTION-SCREEN END OF SCREEN 1010.
+
+*Criação da Aba1 -Subtela Categorias
+SELECTION-SCREEN BEGIN OF SCREEN 1020 AS SUBSCREEN.
+*  Criação do Bloco da tela
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-s03.
+PARAMETERS: p_getc  TYPE c RADIOBUTTON GROUP rb2 DEFAULT 'X' USER-COMMAND radio,
+            p_postc TYPE c RADIOBUTTON GROUP rb2,
+*               p_putC  TYPE c RADIOBUTTON GROUP rb2,
+            p_delc  TYPE c RADIOBUTTON GROUP rb2.
+SELECTION-SCREEN END OF BLOCK b3.
+
+SELECTION-SCREEN BEGIN OF BLOCK b_catg WITH FRAME TITLE text-s06.
+PARAMETERS: p_catg(50) TYPE c MODIF ID pc.
+SELECTION-SCREEN END OF BLOCK b_catg.
+
+SELECTION-SCREEN BEGIN OF BLOCK b_delc WITH FRAME TITLE text-s08.
+PARAMETERS: p_id_del TYPE i MODIF ID de.
+SELECTION-SCREEN END OF BLOCK b_delc.
+SELECTION-SCREEN END OF SCREEN 1020.
+
+*Criação da Aba1 -Subtela Prdutos
+SELECTION-SCREEN BEGIN OF SCREEN 1030 AS SUBSCREEN.
+*  Criação do Bloco da tela
+SELECTION-SCREEN BEGIN OF BLOCK b4 WITH FRAME TITLE text-s04.
+PARAMETERS: p_getp  TYPE c RADIOBUTTON GROUP rb3 DEFAULT 'X' USER-COMMAND radio,
+            p_postp TYPE c RADIOBUTTON GROUP rb3,
+*               p_putP  TYPE c RADIOBUTTON GROUP rb3,
+            p_delp  TYPE c RADIOBUTTON GROUP rb3.
+SELECTION-SCREEN END OF BLOCK b4.
+
+SELECTION-SCREEN BEGIN OF BLOCK b_prod WITH FRAME TITLE text-s07.
+PARAMETERS: p_desc_p(50) TYPE c MODIF ID pp,
+            p_ctg        TYPE i MODIF ID pp,
+            p_preco      TYPE decfloat16 MODIF ID pp.
+SELECTION-SCREEN END OF BLOCK b_prod.
+
+SELECTION-SCREEN BEGIN OF BLOCK b_delp WITH FRAME TITLE text-s08.
+PARAMETERS: p_id_de TYPE i MODIF ID de.
+SELECTION-SCREEN END OF BLOCK b_delp.
+SELECTION-SCREEN END OF SCREEN 1030.
+
+SELECTION-SCREEN BEGIN OF TABBED BLOCK tab FOR 10 LINES.
+SELECTION-SCREEN TAB (20) tab1 USER-COMMAND comm1 DEFAULT SCREEN 1010.
+SELECTION-SCREEN TAB (20) tab2 USER-COMMAND comm2 DEFAULT SCREEN 1020.
+SELECTION-SCREEN TAB (20) tab3 USER-COMMAND comm3 DEFAULT SCREEN 1030.
+SELECTION-SCREEN END OF BLOCK tab.

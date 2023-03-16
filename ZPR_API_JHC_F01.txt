@@ -1,0 +1,375 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZPR_API_JHC_F01
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  Z_TELA_SELECAO
+*&---------------------------------------------------------------------*
+FORM z_tela_selecao.
+
+  IF tab-activetab = 'COMM1'.
+    IF NOT p_getu IS INITIAL.
+      PERFORM z_controla_tela USING c_r1.
+    ELSEIF NOT p_postu IS INITIAL.
+      PERFORM z_controla_tela USING c_pu.
+    ELSEIF NOT p_delu IS INITIAL.
+      PERFORM z_controla_tela USING c_de.
+    ENDIF.
+
+  ELSEIF tab-activetab = 'COMM2'.
+    IF NOT p_getc IS INITIAL.
+      PERFORM z_controla_tela USING c_r1.
+    ELSEIF NOT p_postc IS INITIAL.
+      PERFORM z_controla_tela USING c_pc.
+    ELSEIF NOT p_delc IS INITIAL.
+      PERFORM z_controla_tela USING c_de.
+    ENDIF.
+
+  ELSEIF tab-activetab = 'COMM3'.
+    IF NOT p_getp IS INITIAL.
+      PERFORM z_controla_tela USING c_r1.
+    ELSEIF NOT p_postp IS INITIAL.
+      PERFORM z_controla_tela USING c_pp.
+    ELSEIF NOT p_delp IS INITIAL.
+      PERFORM z_controla_tela USING c_de.
+    ENDIF.
+  ENDIF.
+
+  LOOP AT SCREEN.
+    IF screen-name = 'P_SENHA'.
+      screen-invisible = 1.
+      MODIFY SCREEN.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.                    " Z_TELA_SELECAO
+
+*&---------------------------------------------------------------------*
+*&      Form  Z_CONTROLA_TELA
+*&---------------------------------------------------------------------*
+FORM z_controla_tela USING p_campo.
+
+  LOOP AT SCREEN.
+    IF screen-group1 NE p_campo AND NOT screen-group1 IS INITIAL.
+      screen-active = 0.
+    ELSE.
+      screen-active = 1.
+    ENDIF.
+
+    MODIFY SCREEN.
+  ENDLOOP.
+ENDFORM.                    " Z_CONTROLA_TELA
+
+
+*&---------------------------------------------------------------------*
+*&      Form  INICIALIZACAO
+*&---------------------------------------------------------------------*
+FORM inicializacao.
+  PERFORM login.
+
+  IF token-token NE ''.
+    IF tab-activetab = 'COMM1'.
+      PERFORM usuarios.
+    ELSEIF tab-activetab = 'COMM2'.
+      PERFORM categorias.
+    ELSEIF tab-activetab = 'COMM3'.
+      PERFORM produtos.
+    ENDIF.
+  ENDIF.
+ENDFORM.                    " INICIALIZACAO
+
+*&---------------------------------------------------------------------*
+*&      Form  LOGIN
+*&---------------------------------------------------------------------*
+FORM login.
+  CLEAR: token, lo_http_client, lv_rota, lv_return_code.
+
+  lv_rota = 'login'.
+  lv_json = ''.
+
+*  TRANSLATE p_nome TO LOWER CASE.
+*  TRANSLATE p_senha TO LOWER CASE.
+
+  p_nome = to_lower( p_nome ).
+  p_senha = to_lower( p_senha ).
+
+  PERFORM metodo_rota USING lv_json.
+
+  IF lv_return_code = 200.
+    DATA(lv_return) = lo_http_client->response->get_cdata( ).
+
+    /ui2/cl_json=>deserialize( EXPORTING json = lv_return pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = token )."retorno de 1 item
+
+  ELSE.
+    WRITE 'Internal Server Error'.
+  ENDIF.
+
+ENDFORM.                    " LOGIN
+
+*&---------------------------------------------------------------------*
+*&      Form  USUARIOS
+*&---------------------------------------------------------------------*
+FORM usuarios.
+  CLEAR: tb_usuario, lo_http_client, lv_rota, lv_return_code.
+
+  lv_rota = 'usuarios'.
+  lv_json = ''.
+
+  CONCATENATE '{'
+      '"username": "' p_nome_u '",'
+      '"password": "' p_senh_u '",'
+      '"status": 1 }'INTO lv_json.
+
+  PERFORM metodo_rota USING lv_json.
+
+*  IF lv_return_code <> 500 AND lv_return_code <> 400.
+  IF lv_return_code = 200.
+
+    DATA(lv_return_usu) = lo_http_client->response->get_cdata( ).
+
+    "retorno de vários itens
+    cl_fdt_json=>json_to_data( EXPORTING  iv_json = lv_return_usu CHANGING ca_data = tb_usuario ).
+*
+*    LOOP AT tb_usuario INTO DATA(usu).
+*      WRITE: / 'ID: ', usu-id.
+*      WRITE: / 'Nome: ', usu-username.
+*      WRITE: / 'senha: ', usu-password.
+*      WRITE: / 'Status: ', usu-status.
+*      WRITE: /.
+*    ENDLOOP.
+
+    PERFORM show_dados USING tb_usuario.
+
+  ELSEIF lv_return_code = 201.
+    lv_return_usu = lo_http_client->response->get_cdata( ).
+
+    "retorno de 1 item
+    REPLACE ALL OCCURRENCES OF '[' IN lv_return_usu WITH ''.
+    REPLACE ALL OCCURRENCES OF ']' IN lv_return_usu WITH ''.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = lv_return_usu pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = usuario ).
+
+    WRITE: / 'Novo ID: ', usuario-id.
+
+  ELSEIF lv_return_code = 202.
+    lv_return_usu = lo_http_client->response->get_cdata( ).
+
+    WRITE: / '' && lv_return_usu.
+  ELSE.
+    WRITE 'Internal Server Error'.
+  ENDIF.
+ENDFORM.                    " USUARIOS
+*&---------------------------------------------------------------------*
+*&      Form  CATEGORIAS
+*&---------------------------------------------------------------------*
+FORM categorias.
+  CLEAR: tb_categoria, lo_http_client, lv_rota, lv_return_code.
+
+  lv_rota = 'categorias'.
+  lv_json = ''.
+
+  CONCATENATE '{'
+        '"descricao": "' p_catg '"'
+        ' }'INTO lv_json.
+
+  PERFORM metodo_rota USING lv_json.
+
+  IF lv_return_code = 200.
+
+    DATA(lv_return_catg) = lo_http_client->response->get_cdata( ).
+
+    "retorno de vários itens
+    cl_fdt_json=>json_to_data( EXPORTING  iv_json = lv_return_catg CHANGING ca_data = tb_categoria ).
+
+*    LOOP AT tb_categoria INTO DATA(cat).
+*      WRITE: / 'ID: ', cat-id.
+*      WRITE: / 'Descrição: ', cat-descricao.
+*      WRITE: /.
+*    ENDLOOP.
+
+    PERFORM show_dados USING tb_categoria.
+
+  ELSEIF lv_return_code = 201.
+    lv_return_catg = lo_http_client->response->get_cdata( ).
+
+    "retorno de 1 item
+    REPLACE ALL OCCURRENCES OF '[' IN lv_return_catg WITH ''.
+    REPLACE ALL OCCURRENCES OF ']' IN lv_return_catg WITH ''.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = lv_return_catg pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = categoria ).
+
+    WRITE: / 'Novo ID: ', categoria-id.
+
+  ELSEIF lv_return_code = 202.
+    lv_return_catg = lo_http_client->response->get_cdata( ).
+
+    WRITE: / '' && lv_return_catg.
+
+  ELSE.
+    WRITE 'Internal Server Error'.
+  ENDIF.
+ENDFORM.                    " CATEGORIAS
+*&---------------------------------------------------------------------*
+*&      Form  PRODUTOS
+*&---------------------------------------------------------------------*
+FORM produtos.
+  CLEAR: tb_produto, lo_http_client, lv_rota, lv_return_code.
+  DATA: v_ctg   TYPE string,
+        v_preco TYPE string.
+
+  lv_rota = 'produtos'.
+  v_ctg   = p_ctg.
+  CONDENSE v_ctg.
+  v_preco = p_preco.
+  REPLACE ALL OCCURRENCES OF ',' IN v_preco WITH '.'.
+
+  lv_json = ''.
+  CONCATENATE '{'
+    ' "descricao": "' p_desc_p '", '
+    ' "categoria": ' v_ctg ', '
+    ' "preco": ' v_preco ' }' INTO lv_json.
+
+  PERFORM metodo_rota USING lv_json.
+
+  IF lv_return_code = 200.
+
+    DATA(lv_return_prod) = lo_http_client->response->get_cdata( ).
+
+    "retorno de vários itens
+    cl_fdt_json=>json_to_data( EXPORTING  iv_json = lv_return_prod CHANGING ca_data = tb_produto ).
+
+*    LOOP AT tb_produto INTO DATA(pod).
+*      WRITE: / 'ID: ', pod-id.
+*      WRITE: / 'Descrição: ', pod-descricao.
+*      WRITE: / 'Categoria: ', pod-categoria.
+*      WRITE: / 'Preço: ', pod-preco.
+*      WRITE: /.
+*    ENDLOOP.
+
+    PERFORM show_dados USING tb_produto.
+
+  ELSEIF lv_return_code = 201.
+    lv_return_prod = lo_http_client->response->get_cdata( ).
+
+    "retorno de 1 item
+    REPLACE ALL OCCURRENCES OF '[' IN lv_return_prod WITH ''.
+    REPLACE ALL OCCURRENCES OF ']' IN lv_return_prod WITH ''.
+
+    /ui2/cl_json=>deserialize( EXPORTING json = lv_return_prod pretty_name = /ui2/cl_json=>pretty_mode-camel_case CHANGING data = produto ).
+
+    WRITE: / 'Novo ID: ', produto-id.
+
+  ELSEIF lv_return_code = 202.
+    lv_return_prod = lo_http_client->response->get_cdata( ).
+
+    WRITE: / '' && lv_return_prod.
+
+  ELSE.
+    WRITE 'Internal Server Error'.
+  ENDIF.
+ENDFORM.                    " PRODUTOS
+*&---------------------------------------------------------------------*
+*&      Form  METODO_ROTA
+*&---------------------------------------------------------------------*
+FORM metodo_rota USING json TYPE string.
+
+  IF ( tab-activetab = 'COMM1' AND p_getu NE '' ) OR ( tab-activetab = 'COMM2' AND p_getc NE '' ) OR ( tab-activetab = 'COMM3' AND p_getp NE '' ).
+    lv_method = 'GET'.
+  ELSEIF ( tab-activetab = 'COMM1' AND p_postu NE '' ) OR ( tab-activetab = 'COMM2' AND p_postc NE '' ) OR ( tab-activetab = 'COMM3' AND p_postp NE '' ).
+    lv_method = 'POST'.
+  ELSEIF ( tab-activetab = 'COMM1' AND p_delu NE '' ) OR ( tab-activetab = 'COMM2' AND p_delc NE '' ) OR ( tab-activetab = 'COMM3' AND p_delp NE '' ).
+    lv_method = 'DELETE'.
+  ENDIF.
+
+  IF lv_rota NE 'login' AND lv_method = 'DELETE'.
+    lv_rota = lv_rota && '/' && p_id_del && '/' && p_id_de.
+  ENDIF.
+
+  " Cria e prepara o client de conexão
+  cl_http_client=>create_by_url(
+    EXPORTING
+      url                =  lv_url && lv_rota
+    IMPORTING
+      client             = lo_http_client
+    EXCEPTIONS
+      argument_not_found = 1
+      internal_error     = 2
+      plugin_not_active  = 3
+      OTHERS             = 4 ).
+
+  " Autenticação
+  IF lv_rota EQ 'login'.
+    CALL METHOD lo_http_client->authenticate
+      EXPORTING
+        username = CONV #( p_nome )
+        password = CONV #( p_senha ).
+    lv_method = 'GET'.
+  ELSE.
+    CALL METHOD lo_http_client->request->set_header_field
+      EXPORTING
+        name  = 'Authorization'
+        value = |Bearer { token-token }|.
+  ENDIF.
+
+  lo_http_client->propertytype_logon_popup = lo_http_client->co_disabled.
+
+  CALL METHOD lo_http_client->request->set_header_field
+    EXPORTING
+      name  = '~request_method'
+      value = lv_method.
+
+  CALL METHOD lo_http_client->request->set_header_field
+    EXPORTING
+      name  = '~server_protocol'
+      value = 'HTTP/1.1'.
+
+  CALL METHOD lo_http_client->request->set_header_field
+    EXPORTING
+      name  = 'Content-Type'
+      value = 'application/json'.
+
+  IF lv_method = 'POST' AND json NE ''.
+    l_query_length = strlen( json ).
+
+    CALL METHOD lo_http_client->request->set_cdata
+      EXPORTING
+        data   = json
+        offset = 0
+        length = l_query_length.
+  ENDIF.
+
+  " Envia a requisição
+  CALL METHOD lo_http_client->send(
+    EXCEPTIONS
+      http_communication_failure = 1
+      http_invalid_state         = 2 ).
+
+  " Recebe os dados
+  CALL METHOD lo_http_client->receive(
+    EXCEPTIONS
+      http_communication_failure = 1
+      http_invalid_state         = 2
+      http_processing_failed     = 3 ).
+
+  lo_http_client->response->get_status( IMPORTING code = lv_return_code ).
+
+ENDFORM.                    " METODO_ROTA
+*&---------------------------------------------------------------------*
+*&      Form  SHOW_DADOS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_TB_USUARIO  text
+*----------------------------------------------------------------------*
+FORM show_dados  USING p_tb_usuario TYPE TABLE.
+  TRY.
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = go_alv
+        CHANGING
+          t_table      = p_tb_usuario[] ). "Internal Table
+
+    CATCH cx_salv_msg.
+  ENDTRY.
+
+  go_alv->display( ).
+ENDFORM.                    " SHOW_DADOS

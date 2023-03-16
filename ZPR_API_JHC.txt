@@ -1,0 +1,22 @@
+*&---------------------------------------------------------------------*
+*& Report  ZPR_API_JHC
+*&---------------------------------------------------------------------*
+
+REPORT zpr_api_jhc.
+
+INCLUDE zpr_api_jhc_top.
+INCLUDE zpr_api_jhc_f01.
+
+
+INITIALIZATION.
+  tab1 = 'Usuário'.
+  tab2 = 'Categoria'.
+  tab3 = 'Produto'.
+
+
+AT SELECTION-SCREEN OUTPUT.
+
+  PERFORM z_tela_selecao.
+
+START-OF-SELECTION.
+  PERFORM inicializacao.
